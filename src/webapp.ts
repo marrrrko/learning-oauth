@@ -4,6 +4,7 @@ import {
   createRouter,
   defineEventHandler,
   getQuery,
+  getRequestURL,
   sendRedirect,
   useSession,
 } from "h3"
@@ -46,7 +47,13 @@ router.get(
     const session = await useSession(event, {
       password: SESSION_PASSWORD,
     })
-    return `<html>Hello world!<br /><br /><a href="/login">Login</a><br /><br />Session<pre>${JSON.stringify(
+    const isLoggedIn = session.data.user_id != undefined
+    return `
+    <html>Hello world!<br /><br />
+    <pre>${new URL(getRequestURL(event).origin)}</pre><br />
+    <a href="${isLoggedIn ? "/logout" : "/login"}">${
+      isLoggedIn ? "Log Out" : "Log In"
+    }</a><br /><br />Session<pre>${JSON.stringify(
       session.data,
       null,
       "  "
@@ -65,6 +72,23 @@ router.get(
     await session.update({ count: count + 1 })
 
     return `Count is ${count}`
+  })
+)
+
+router.get(
+  "/logout",
+  defineEventHandler(async (event) => {
+    const session = await useSession(event, {
+      password: SESSION_PASSWORD,
+    })
+    session.clear()
+    const homeUrl = new URL(getRequestURL(event)).origin
+    return sendRedirect(
+      event,
+      `https://${auth0Config.customDomain}/v2/logout?client_id=${
+        auth0Config.clientId
+      }&returnTo=${encodeURIComponent(homeUrl)}`
+    )
   })
 )
 
